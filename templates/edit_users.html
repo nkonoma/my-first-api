@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Users</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .user-card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .save-btn {
+            background-color: #1a73e8;
+            color: white;
+        }
+        .cancel-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .back-btn {
+            background-color: #6c757d;
+            color: white;
+            margin-bottom: 20px;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="back-btn" onclick="window.location.href='/dashboard'">Back to Dashboard</button>
+        <h1>Edit Users</h1>
+        <div id="usersList"></div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        async function fetchUsers() {
+            try {
+                const response = await fetch('/api/v1/users', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch users');
+                }
+
+                const users = await response.json();
+                const usersList = document.getElementById('usersList');
+                usersList.innerHTML = '';
+
+                users.forEach(user => {
+                    const userCard = document.createElement('div');
+                    userCard.className = 'user-card';
+                    userCard.innerHTML = `
+                        <form id="form-${user.id}" onsubmit="updateUser(event, '${user.id}')">
+                            <div class="form-group">
+                                <label>First Name:</label>
+                                <input type="text" name="first_name" value="${user.first_name || ''}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Last Name:</label>
+                                <input type="text" name="last_name" value="${user.last_name || ''}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Middle Name:</label>
+                                <input type="text" name="middle_name" value="${user.middle_name || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Gender:</label>
+                                <select name="gender">
+                                    <option value="male" ${user.gender === 'male' ? 'selected' : ''}>Male</option>
+                                    <option value="female" ${user.gender === 'female' ? 'selected' : ''}>Female</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Roles:</label>
+                                <select name="roles" multiple>
+                                    <option value="admin" ${user.roles.includes('admin') ? 'selected' : ''}>Admin</option>
+                                    <option value="user" ${user.roles.includes('user') ? 'selected' : ''}>User</option>
+                                    <option value="student" ${user.roles.includes('student') ? 'selected' : ''}>Student</option>
+                                </select>
+                                <small>Hold Ctrl/Cmd to select multiple roles</small>
+                            </div>
+                            <div class="button-group">
+                                <button type="submit" class="save-btn">Save Changes</button>
+                                <button type="button" class="cancel-btn" onclick="resetForm('${user.id}')">Reset</button>
+                            </div>
+                            <div id="error-${user.id}" class="error"></div>
+                        </form>
+                    `;
+                    usersList.appendChild(userCard);
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to fetch users');
+            }
+        }
+
+        async function updateUser(event, userId) {
+            event.preventDefault();
+            const form = document.getElementById(`form-${userId}`);
+            const errorDiv = document.getElementById(`error-${userId}`);
+
+            try {
+                const roles = Array.from(form.roles.selectedOptions).map(option => option.value);
+                const userData = {
+                    first_name: form.first_name.value,
+                    last_name: form.last_name.value,
+                    middle_name: form.middle_name.value || null,
+                    gender: form.gender.value,
+                    roles: roles
+                };
+
+                const response = await fetch(`/api/v1/users/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update user');
+                }
+
+                alert('User updated successfully!');
+                fetchUsers();  // Refresh the list
+            } catch (error) {
+                errorDiv.textContent = error.message;
+            }
+        }
+
+        function resetForm(userId) {
+            fetchUsers();  // This will reset the form to original values
+        }
+
+        // Initial load
+        fetchUsers();
+    </script>
+</body>
+</html>

@@ -4,30 +4,62 @@ from fastapi import HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt
 
-SECRET_KEY = "your_secret_key"
+# Configuration constants
+SECRET_KEY = "your_secret_key"  # In production, use environment variable
 ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+# Security instance for token bearer authentication
 security = HTTPBearer()
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """
+    Create a JWT access token
+    
+    Args:
+        data: Payload to encode in the token
+        expires_delta: Optional custom expiration time
+        
+    Returns:
+        str: Encoded JWT token
+    """
+    # Create a copy of the data to avoid modifying the original
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+    
+    # Set expiration time
+    expire = datetime.utcnow() + (
+        expires_delta if expires_delta 
+        else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    
+    # Create and return the encoded token
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def verify_token(credentials: HTTPAuthorizationCredentials = None):
-    if not credentials:
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+def verify_token(credentials: HTTPAuthorizationCredentials) -> dict:
+    """
+    Verify and decode a JWT token
+    
+    Args:
+        credentials: Token credentials to verify
+        
+    Returns:
+        dict: Decoded token payload
+        
+    Raises:
+        HTTPException: If token is invalid or expired
+    """
     try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        # Decode and verify the token
+        payload = jwt.decode(
+            credentials.credentials,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
         return payload
     except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Could not validate credentials: {str(e)}")
+        raise HTTPException(
+            status_code=401,
+            detail=f"Could not validate credentials: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

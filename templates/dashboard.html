@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card h2 {
+            margin: 0;
+            color: #1a73e8;
+        }
+        .card p {
+            color: #666;
+        }
+        .logout-btn {
+            padding: 10px 20px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Admin Dashboard</h1>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+        <div class="card-container">
+            <div class="card" onclick="window.location.href='/users'">
+                <h2>View Users</h2>
+                <p>View and manage all users in the system</p>
+            </div>
+            <div class="card" onclick="showAddUserForm()">
+                <h2>Add User</h2>
+                <p>Create a new user account</p>
+            </div>
+            <div class="card" onclick="window.location.href='/edit-users'">
+                <h2>Edit Users</h2>
+                <p>Modify existing user details</p>
+            </div>
+            <div class="card" onclick="window.location.href='/manage-users'">
+                <h2>Delete Users</h2>
+                <p>Remove users from the system</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if user is logged in
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+
+        function showAddUserForm() {
+            window.location.href = '/add-user';
+        }
+    </script>
+</body>
+</html>

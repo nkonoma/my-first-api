@@ -1,13 +1,18 @@
-from fastapi import FastAPI, HTTPException, Depends
-from models import User, Gender, Role, UserUpdateRequest, UserLogin
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from models import User, Gender, Role, UserLogin, UserUpdateRequest
 from typing import List
-from uuid import UUID
-from auth import security, create_access_token, verify_token
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from uuid import UUID, uuid4
+from auth import create_access_token
+from middleware import AuthMiddleware
 
-
+# Initialize FastAPI app and templates
 app = FastAPI()
-security = HTTPBearer()
+templates = Jinja2Templates(directory="templates")
+
+# Add authentication middleware
+app.add_middleware(AuthMiddleware)
 
 db: List[User] = [
     User(
@@ -30,57 +35,102 @@ db: List[User] = [
 async def read_root(): # root endpoint
     return {"message": "Hello World. My name is Nic"}
 
-@app.post("/login")
-async def login(user_credentials: dict):
- # In a real app, verify credentials against a database
-    if user_credentials.get("username") == "admin" and user_credentials.get("password") == "password":
-        token = create_access_token(
-            data={"sub": user_credentials["username"]}
-        )
-        return {"access_token": token, "token_type": "bearer"}
-    raise HTTPException(
-        status_code=401,
-        detail="Incorrect username or password"
-    )
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Serve the login page"""
+    return templates.TemplateResponse("login.html", {"request": request})
 
-@app.get("/api/v1/users") # get all users
-async def fetch_users(token: HTTPAuthorizationCredentials = Depends(security)):
-    verify_token(token)
-    return db;
+@app.post("/login")
+async def login(user_credentials: UserLogin):
+    """
+    Authenticate user and return JWT token
+    Args:
+        user_credentials: Username and password
+    Returns:
+        dict: Access token and token type
+    """
+    if user_credentials.username == "admin" and user_credentials.password == "password":
+        token = create_access_token(data={"sub": user_credentials.username})
+        return {"access_token": token, "token_type": "bearer"}
+    raise HTTPException(status_code=401, detail="Incorrect username or password")
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    """Serve the dashboard page"""
+    return templates.TemplateResponse("dashboard.html", {"request": request})
+
+@app.get("/users", response_class=HTMLResponse)
+async def users_page(request: Request):
+    """Serve the users list page"""
+    return templates.TemplateResponse("users.html", {"request": request})
+
+@app.get("/add-user", response_class=HTMLResponse)
+async def add_user_page(request: Request):
+    """Serve the add user page"""
+    return templates.TemplateResponse("add_user.html", {"request": request})
+
+@app.get("/edit-users", response_class=HTMLResponse)
+async def edit_users_page(request: Request):
+    """Serve the edit users page"""
+    return templates.TemplateResponse("edit_users.html", {"request": request})
+
+@app.get("/manage-users", response_class=HTMLResponse)
+async def manage_users_page(request: Request):
+    """Serve the delete users page"""
+    return templates.TemplateResponse("delete_users.html", {"request": request})
+
+# API Endpoints
+
+@app.get("/api/v1/users")
+async def fetch_users():
+    """
+    Get all users from database
+    Returns:
+        list: List of users
+    """
+    return db
 
 @app.post("/api/v1/users")
-async def register_user(user: User, token: HTTPAuthorizationCredentials = Depends(security)):
-    verify_token(token)
+async def register_user(user: User):
+    """
+    Create a new user
+    Args:
+        user: User data
+    Returns:
+        dict: Created user's ID
+    """
     db.append(user)
     return {"id": user.id}
 
+@app.put("/api/v1/users/{user_id}")
+async def update_user(user_id: UUID, user_update: UserUpdateRequest):
+    """
+    Update an existing user
+    Args:
+        user_id: UUID of user to update
+        user_update: Updated user data
+    Returns:
+        User: Updated user object
+    """
+    for user in db:
+        if user.id == user_id:
+            # Update only provided fields
+            for field, value in user_update.dict(exclude_unset=True).items():
+                setattr(user, field, value)
+            return user
+    raise HTTPException(status_code=404, detail=f"User with id: {user_id} does not exist")
+
 @app.delete("/api/v1/users/{user_id}")
 async def delete_user(user_id: UUID):
+    """
+    Delete a user
+    Args:
+        user_id: UUID of user to delete
+    Returns:
+        dict: Success message
+    """
     for user in db:
         if user.id == user_id:
             db.remove(user)
-            return {"message" : "User was successfully deleted"}
-    raise HTTPException(
-        status_code=404,
-        detail=f"User with id: {user_id} does not exist"
-    )
-
-@app.put("/api/v1/users/{user_id}")
-async def update_user(user_update: UserUpdateRequest, user_id: UUID):
-    for user in db: # loop through the users in the database
-        if user.id == user_id: # if the user id is the same as the user id in the database
-            if user_update.first_name is not None: # if the first name is not None
-                user.first_name = user_update.first_name # update the first name
-            if user_update.last_name is not None: # if the last name is not None
-                user.last_name = user_update.last_name # update the last name
-            if user_update.middle_name is not None: # if the middle name is not None
-                user.middle_name = user_update.middle_name # update the middle name
-            if user_update.gender is not None: # if the gender is not None
-                user.gender = user_update.gender # update the gender
-            if user_update.roles is not None: # if the roles is not None
-                user.roles = user_update.roles # update the roles
-            return {"message": "User was successfully updated"}
-    raise HTTPException(
-        status_code=404,
-        detail=f"User with id: {user_id} does not exist"
-    )
+            return {"message": "User deleted successfully"}
+    raise HTTPException(status_code=404, detail=f"User with id: {user_id} does not exist")
