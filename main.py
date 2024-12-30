@@ -5,6 +5,9 @@ from models import User, UserCreate, UserLogin, UserResponse, UserUpdateRequest,
 from security import hash_password, verify_password
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
+from datetime import datetime, timedelta
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -52,6 +55,26 @@ def get_db():
     finally:
         db.close()
 
+# Add these constants at the top of your file
+SECRET_KEY = "your-secret-key-here"  # In production, use a secure secret key
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# Add this function after the constants
+def create_access_token(data: dict, expires_delta: timedelta = None):
+    """Create a new access token"""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
 # API Endpoints
 @app.post("/login")
 def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
@@ -63,7 +86,13 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     if not verify_password(user_credentials.password, user.password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
-    return {"message": "Login successful"}
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/users", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):

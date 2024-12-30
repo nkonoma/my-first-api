@@ -1,25 +1,37 @@
-# My First API
+# User Management System
 
-A FastAPI-based REST API with user authentication.
+A FastAPI-based user management system with MySQL database integration.
 
 ## Setup
 
-1. Clone the repository:
-```bash
-git clone <your-repo-url>
-cd my-first-api
-```
-
-2. Create and activate virtual environment:
+1. Create a virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate
 ```
-3. Install dependencies:
+
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
-4. Run the server:
+
+3. Set up MySQL database:
+```sql
+CREATE DATABASE dbname;
+CREATE USER 'username'@'localhost' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON dbname.* TO 'username'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+4. Create a `.env` file in the root directory:
+```env
+DB_USER=your_username
+DB_PASSWORD=your_password
+DB_HOST=localhost
+DB_NAME=dbname
+```
+
+5. Run the server:
 ```bash
 uvicorn main:app --reload
 ``` 
