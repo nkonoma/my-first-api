@@ -107,7 +107,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function loadUsers() {
     try {
-        const response = await fetch('http://localhost:8000/users');
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:8000/users', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.status === 401) {
+            // Token expired or invalid
+            window.location.href = '/login';
+            return;
+        }
+
         const users = await response.json();
         
         const tableBody = document.getElementById('usersTableBody');
@@ -137,8 +149,12 @@ async function loadUsers() {
 async function deleteUser(userId) {
     if (confirm('Are you sure you want to delete this user?')) {
         try {
+            const token = localStorage.getItem('token');
             const response = await fetch(`http://localhost:8000/users/${userId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
 
             if (response.ok) {

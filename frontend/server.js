@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const port = 3000;
+const authenticateToken = require('./middleware/auth');
 
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -22,14 +23,8 @@ app.get('/login', (req, res) => {
     res.render('login');
 });
 
-app.get('/dashboard', (req, res) => {
-    console.log('Dashboard route hit');
-    try {
-        res.render('dashboard');
-    } catch (error) {
-        console.error('Error rendering dashboard:', error);
-        res.status(500).send('Error loading dashboard');
-    }
+app.get('/dashboard', authenticateToken, (req, res) => {
+    res.render('dashboard');
 });
 
 // Catch-all route for undefined paths
